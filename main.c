@@ -1,12 +1,23 @@
+#include <conio.h>
 #include <intrin.h>
 #include <math.h>
 #include <stdio.h>
 
-const int iterationCount = 10000000;
 const float half = -0.5f;
 const float threeHalves = 1.5f;
 const int magic = 0x5f3759df;
 const float fmodifier = 5.9604645e-8f;
+
+unsigned int iterationCount = 10000000;
+unsigned int seed = 0xdeadbeef;
+
+void generateSeedUsingIterationCount()
+{
+	for (unsigned int iteration = 0; iteration < iterationCount; ++iteration)
+	{
+		seed = 1664525u * seed + 1013904223u;
+	}
+}
 
 __declspec(naked) float rsqrtASM(unsigned int seed)
 {
@@ -91,13 +102,27 @@ float Q_rsqrt(float variable)
 
 int main(int argc, char* argv[])
 {
-	if (argc < 2)
+	printf("Hand-written x86 Assembly vs Quake 3 and default inverse square root benchmark.\n\n");
+
+	if (argc == 2)
 	{
-		//return 1;
+		sscanf_s(argv[1], "%u", &iterationCount);
+		generateSeedUsingIterationCount();
+	}
+	else if (argc == 3)
+	{
+		sscanf_s(argv[1], "%u", &iterationCount);
+		sscanf_s(argv[2], "%u", &seed);
+	}
+	else
+	{
+		printf("Usage:\nisrt ITERATIONS SEED\n\nNo arguments were provided - the following defaults are used:\n");
+		generateSeedUsingIterationCount();
 	}
 
+	printf("Total iterations: %u.\nSeed: %u.\n\n", iterationCount, seed);
+
 	float value = 0.0f;
-	unsigned int seed = 123456789;
 
 	unsigned long long now = __rdtsc();
 	float cyclesPerIteration = 0.0f;
@@ -110,7 +135,7 @@ int main(int argc, char* argv[])
 
 	now = __rdtsc();
 
-	for (int iteration = 0; iteration < iterationCount; ++iteration)
+	for (unsigned int iteration = 0; iteration < iterationCount; ++iteration)
 	{
 		seed = 1664525u * seed + 1013904223u;
 		value = (seed >> 8) * 5.9604645e-8f;
@@ -124,7 +149,7 @@ int main(int argc, char* argv[])
 
 	now = __rdtsc();
 
-	for (int iteration = 0; iteration < iterationCount; ++iteration)
+	for (unsigned int iteration = 0; iteration < iterationCount; ++iteration)
 	{
 		seed = 1664525u * seed + 1013904223u;
 		value = (seed >> 8) * 5.9604645e-8f;
@@ -135,6 +160,10 @@ int main(int argc, char* argv[])
 	now = __rdtsc() - now;
 	cyclesPerIteration = (float)now / (float)iterationCount;
 	printf("C inverse sqrt: %d iterations took %llu cycles, ~%.2f cycles/it.\n", iterationCount, now, cyclesPerIteration);
+
+	printf("\n\nPress any key to exit...");
+
+	_getch();
 
 	return 0;
 }
